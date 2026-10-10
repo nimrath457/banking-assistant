@@ -1,0 +1,76 @@
+
+name: Hindsight Cloud Diagnostic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-hindsight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Verify API key is configured
+        env:
+          HINDSIGHT_API_KEY: ${{ secrets.HINDSIGHT_API_KEY }}
+        run: |
+          if [ -z "$HINDSIGHT_API_KEY" ]; then
+            echo "::error::HINDSIGHT_API_KEY is missing."
+            exit 1
+          fi
+          echo "API key is configured. Value hidden."
+
+      - name: Test authenticated Hindsight recall
+        env:
+          HINDSIGHT_API_KEY: ${{ secrets.HINDSIGHT_API_KEY }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from urllib.request import Request, urlopen
+          from urllib.error import HTTPError, URLError
+          from urllib.parse import quote
+
+          key = os.environ["HINDSIGHT_API_KEY"]
+          bank = quote("My AI Engine", safe="")
+          url = (
+              "https://api.hindsight.vectorize.io"
+              f"/v1/default/banks/{bank}/memories/recall"
+          )
+          data = json.dumps({
+              "query": "Connection diagnostic"
+          }).encode()
+
+          req = Request(
+              url,
+              data=data,
+              method="POST",
+              headers={
+                  "Authorization": f"Bearer {key}",
+                  "Content-Type": "application/json",
+                  "Accept": "application/json",
+              },
+          )
+
+          try:
+              with urlopen(req, timeout=20) as response:
+                  print(f"HTTP status: {response.status}")
+                  print("Authenticated recall succeeded.")
+          except HTTPError as exc:
+              print(f"Hindsight returned HTTP {exc.code}.")
+              if exc.code == 401:
+                  print("Check whether the key is valid and active.")
+              elif exc.code == 404:
+                  print("Check whether the bank exists and the bank ID is correct.")
+              elif exc.code == 403:
+                  print("Check access permissions for this bank.")
+              sys.exit(1)
+          except (URLError, TimeoutError) as exc:
+              print(f"Connection failed: {type(exc).__name__}")
+              sys.exit(1)
+          PY
+
