@@ -39,7 +39,7 @@ class HindsightClient:
         self.endpoint = os.getenv("HINDSIGHT_ENDPOINT", "https://api.hindsight.vectorize.io").rstrip("/")
         if self.endpoint.endswith("/v1"):
             self.endpoint = self.endpoint[:-3]
-        self.agent_bank_id = os.getenv("HINDSIGHT_AGENT_BANK_ID", "My AI Assistent").strip()
+        self.agent_bank_id = os.getenv("HINDSIGHT_AGENT_BANK_ID", "My AI Engine").strip()
         self.is_live = bool(self.api_key and self.api_key.startswith("hsk_"))
         self._local_banks: Dict[str, CustomerMemoryBank] = {}
         self._initialize_from_mock_db()
@@ -230,7 +230,7 @@ class HindsightClient:
         if self.is_live:
             try:
                 bank_id = self._bank_id_for(cid)
-                retain_url = f"{self.endpoint}/v1/default/banks/{bank_id}/memories"
+                retain_url = f"{self.endpoint}/v1/default/banks/{quote(bank_id, safe='')}/memories"
                 content_text = (
                     f"Customer [{cid}] Inquiry: '{payload.customer_message}'. "
                     f"Agent Resolution: '{payload.agent_response}'. "
@@ -268,7 +268,7 @@ class HindsightClient:
         if self.is_live:
             try:
                 bank_id = self._bank_id_for(customer_id)
-                reflect_url = f"{self.endpoint}/v1/default/banks/{bank_id}/reflect"
+                reflect_url = f"{self.endpoint}/v1/default/banks/{quote(bank_id, safe='')}/reflect"
                 payload = json.dumps({"query": "Synthesize customer journey and resolution trends."}).encode("utf-8")
                 req = urllib.request.Request(
                     reflect_url,
